@@ -1,0 +1,49 @@
+common:
+    target:
+        - Cortex-M0
+    core:
+        - Cortex-M0
+    macros:
+        - INTERFACE_STM32F072XB
+        - USE_HAL_DRIVER
+        - STM32F072xB
+        - DAPLINK_HIC_ID=0x9796990E  # DAPLINK_HIC_ID_STM32F072XB
+        - __packed=__packed          # Prevent redefinition of __packed with ARMCC
+        - DAPLINK_NO_ASSERT_FILENAMES
+        - OS_CLOCK=48000000
+    includes:
+        - source/hic_hal/stm32/stm32f072xb
+        - source/hic_hal/stm32/stm32f072xb/cmsis
+        - source/hic_hal/stm32/stm32f072xb/STM32F0xx_HAL_Driver
+        - source/hic_hal/stm32/stm32f072xb/STM32F0xx_HAL_Driver/Inc
+    sources:
+        hic_hal:
+            - source/hic_hal/stm32/stm32f072xb
+            - source/hic_hal/stm32/stm32f072xb/cmsis
+            - source/hic_hal/stm32/stm32f072xb/STM32F0xx_HAL_Driver/Src
+
+tool_specific:
+    uvision:
+        misc:
+            ld_flags:
+                - --predefine="-I..\..\..\source\hic_hal\stm32\stm32f072xb"
+        sources:
+            hic_hal:
+                - source/hic_hal/stm32/stm32f072xb/armcc
+    armcc:
+        misc:
+            asm_flags:
+                - --no_unaligned_access
+            c_flags:
+                - --no_unaligned_access
+        sources:
+            hic_hal:
+                - source/hic_hal/stm32/stm32f072xb/armcc
+    armclang:
+        sources:
+            hic_hal:
+                - source/hic_hal/stm32/stm32f072xb/armcc
+    gcc_arm:
+        sources:
+            hic_hal:
+                - source/hic_hal/stm32/stm32f072xb/gcc
