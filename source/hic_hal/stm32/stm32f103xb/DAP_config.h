@@ -70,7 +70,7 @@ This information includes:
 /// Default communication speed on the Debug Access Port for SWD and JTAG mode.
 /// Used to initialize the default SWD/JTAG clock frequency.
 /// The command \ref DAP_SWJ_Clock can be used to overwrite this default setting.
-#define DAP_DEFAULT_SWJ_CLOCK   5000000         ///< Default SWD/JTAG clock frequency in Hz.
+#define DAP_DEFAULT_SWJ_CLOCK   1000000         ///< Default SWD/JTAG clock frequency in Hz.
 
 /// Maximum Package Size for Command and Response data.
 /// This configuration settings is used to optimize the communication performance with the
@@ -255,10 +255,9 @@ __STATIC_INLINE void PORT_SWD_SETUP(void)
     pin_out_init(SWCLK_TCK_PIN_PORT, SWCLK_TCK_PIN_Bit);
     SWCLK_TCK_PIN_PORT->BSRR = SWCLK_TCK_PIN;
     // Set SWDIO HIGH
-    pin_out_init(SWDIO_OUT_PIN_PORT, SWDIO_OUT_PIN_Bit);
-    SWDIO_OUT_PIN_PORT->BSRR = SWDIO_OUT_PIN;
+    pin_out_init(SWDIO_INOUT_PIN_PORT, SWDIO_INOUT_PIN_Bit);
+    SWDIO_INOUT_PIN_PORT->BSRR = SWDIO_INOUT_PIN;
 
-    pin_in_init(SWDIO_IN_PIN_PORT, SWDIO_IN_PIN_Bit, 1);
     // Set RESET HIGH
     pin_out_od_init(nRESET_PIN_PORT, nRESET_PIN_Bit);//TODO - fix reset logic
     nRESET_PIN_PORT->BSRR = nRESET_PIN;
@@ -271,8 +270,7 @@ Disables the DAP Hardware I/O pins which configures:
 __STATIC_INLINE void PORT_OFF(void)
 {
     pin_in_init(SWCLK_TCK_PIN_PORT, SWCLK_TCK_PIN_Bit, 0);
-    pin_in_init(SWDIO_OUT_PIN_PORT, SWDIO_OUT_PIN_Bit, 0);
-    pin_in_init(SWDIO_IN_PIN_PORT, SWDIO_IN_PIN_Bit, 0);
+    pin_in_init(SWDIO_INOUT_PIN_PORT, SWDIO_INOUT_PIN_Bit, 0);
 }
 
 // SWCLK/TCK I/O pin -------------------------------------
@@ -303,48 +301,7 @@ __STATIC_FORCEINLINE void PIN_SWCLK_TCK_CLR(void)
 
 // SWDIO/TMS Pin I/O --------------------------------------
 
-/** SWDIO/TMS I/O pin: Get Input.
-\return Current status of the SWDIO/TMS DAP hardware I/O pin.
-*/
-__STATIC_FORCEINLINE uint32_t PIN_SWDIO_TMS_IN(void)
-{
-    return ((SWDIO_IN_PIN_PORT->IDR & SWDIO_IN_PIN) ? 1 : 0);
-}
-
-/** SWDIO/TMS I/O pin: Set Output to High.
-Set the SWDIO/TMS DAP hardware I/O pin to high level.
-*/
-__STATIC_FORCEINLINE void PIN_SWDIO_TMS_SET(void)
-{
-    SWDIO_OUT_PIN_PORT->BSRR = SWDIO_OUT_PIN;
-}
-
-/** SWDIO/TMS I/O pin: Set Output to Low.
-Set the SWDIO/TMS DAP hardware I/O pin to low level.
-*/
-__STATIC_FORCEINLINE void PIN_SWDIO_TMS_CLR(void)
-{
-    SWDIO_OUT_PIN_PORT->BRR = SWDIO_OUT_PIN;
-}
-
-/** SWDIO I/O pin: Get Input (used in SWD mode only).
-\return Current status of the SWDIO DAP hardware I/O pin.
-*/
-__STATIC_FORCEINLINE uint32_t PIN_SWDIO_IN(void)
-{
-    return ((SWDIO_IN_PIN_PORT->IDR & SWDIO_IN_PIN) ? 1 : 0);
-}
-
-/** SWDIO I/O pin: Set Output (used in SWD mode only).
-\param bit Output value for the SWDIO DAP hardware I/O pin.
-*/
-__STATIC_FORCEINLINE void PIN_SWDIO_OUT(uint32_t bit)
-{
-    if (bit & 1)
-        SWDIO_OUT_PIN_PORT->BSRR = SWDIO_OUT_PIN;
-    else
-        SWDIO_OUT_PIN_PORT->BRR = SWDIO_OUT_PIN;
-}
+static bool swdio_out_mode = true;
 
 /** SWDIO I/O pin: Switch to Output mode (used in SWD mode only).
 Configure the SWDIO DAP hardware I/O pin to output mode. This function is
@@ -352,8 +309,9 @@ called prior \ref PIN_SWDIO_OUT function calls.
 */
 __STATIC_FORCEINLINE void PIN_SWDIO_OUT_ENABLE(void)
 {
-    pin_out_init(SWDIO_OUT_PIN_PORT, SWDIO_OUT_PIN_Bit);
-    SWDIO_OUT_PIN_PORT->BRR = SWDIO_OUT_PIN;
+    swdio_out_mode = true;
+    pin_out_init(SWDIO_INOUT_PIN_PORT, SWDIO_INOUT_PIN_Bit);
+    SWDIO_INOUT_PIN_PORT->BRR = SWDIO_INOUT_PIN;
 }
 
 /** SWDIO I/O pin: Switch to Input mode (used in SWD mode only).
@@ -362,9 +320,70 @@ called prior \ref PIN_SWDIO_IN function calls.
 */
 __STATIC_FORCEINLINE void PIN_SWDIO_OUT_DISABLE(void)
 {
-    pin_in_init(SWDIO_OUT_PIN_PORT, SWDIO_OUT_PIN_Bit, 0);
-    SWDIO_OUT_PIN_PORT->BSRR = SWDIO_OUT_PIN;
+    swdio_out_mode = false;
+    pin_in_init(SWDIO_INOUT_PIN_PORT, SWDIO_INOUT_PIN_Bit, 0);
+    SWDIO_INOUT_PIN_PORT->BSRR = SWDIO_INOUT_PIN;
 }
+
+/** SWDIO/TMS I/O pin: Get Input.
+\return Current status of the SWDIO/TMS DAP hardware I/O pin.
+*/
+__STATIC_FORCEINLINE uint32_t PIN_SWDIO_TMS_IN(void)
+{
+    if (swdio_out_mode)
+    {
+        PIN_SWDIO_OUT_DISABLE(); 
+    }
+
+    return ((SWDIO_INOUT_PIN_PORT->IDR & SWDIO_INOUT_PIN) ? 1 : 0);
+}
+
+/** SWDIO/TMS I/O pin: Set Output to High.
+Set the SWDIO/TMS DAP hardware I/O pin to high level.
+*/
+__STATIC_FORCEINLINE void PIN_SWDIO_TMS_SET(void)
+{
+    if (!swdio_out_mode)
+    {
+        PIN_SWDIO_OUT_ENABLE();  
+    }
+
+    SWDIO_INOUT_PIN_PORT->BSRR = SWDIO_INOUT_PIN;
+}
+
+/** SWDIO/TMS I/O pin: Set Output to Low.
+Set the SWDIO/TMS DAP hardware I/O pin to low level.
+*/
+__STATIC_FORCEINLINE void PIN_SWDIO_TMS_CLR(void)
+{
+    if (!swdio_out_mode)
+    {
+        PIN_SWDIO_OUT_ENABLE();
+    }
+
+    SWDIO_INOUT_PIN_PORT->BRR = SWDIO_INOUT_PIN;
+}
+
+/** SWDIO I/O pin: Get Input (used in SWD mode only).
+\return Current status of the SWDIO DAP hardware I/O pin.
+*/
+__STATIC_FORCEINLINE uint32_t PIN_SWDIO_IN(void)
+{
+    return PIN_SWDIO_TMS_IN();
+}
+
+/** SWDIO I/O pin: Set Output (used in SWD mode only).
+\param bit Output value for the SWDIO DAP hardware I/O pin.
+*/
+__STATIC_FORCEINLINE void PIN_SWDIO_OUT(uint32_t bit)
+{
+    if (bit & 1)
+        PIN_SWDIO_TMS_SET();
+    else
+        PIN_SWDIO_TMS_CLR();
+}
+
+
 
 
 // TDI Pin I/O ---------------------------------------------
@@ -527,14 +546,18 @@ __STATIC_INLINE void DAP_SETUP(void)
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
     __HAL_RCC_GPIOD_CLK_ENABLE();
+
+    // Disable SWD to be able to use the pins
+    __HAL_RCC_AFIO_CLK_ENABLE();
+    AFIO->MAPR &= ((~AFIO_MAPR_SWJ_CFG_Msk) | AFIO_MAPR_SWJ_CFG_DISABLE);
+
     /* Configure I/O pin SWCLK */
     pin_out_init(SWCLK_TCK_PIN_PORT, SWCLK_TCK_PIN_Bit);
     SWCLK_TCK_PIN_PORT->BSRR = SWCLK_TCK_PIN;
 
-    pin_out_init(SWDIO_OUT_PIN_PORT, SWDIO_OUT_PIN_Bit);
-    SWDIO_OUT_PIN_PORT->BSRR = SWDIO_OUT_PIN;
-
-    pin_in_init(SWDIO_IN_PIN_PORT, SWDIO_IN_PIN_Bit, 1);
+    // default: out
+    pin_out_init(SWDIO_INOUT_PIN_PORT, SWDIO_INOUT_PIN_Bit);
+    SWDIO_INOUT_PIN_PORT->BSRR = SWDIO_INOUT_PIN;
 
     pin_out_od_init(nRESET_PIN_PORT, nRESET_PIN_Bit);
     nRESET_PIN_PORT->BSRR = nRESET_PIN;
