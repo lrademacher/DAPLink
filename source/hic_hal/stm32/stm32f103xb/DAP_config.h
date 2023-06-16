@@ -549,7 +549,8 @@ __STATIC_INLINE void DAP_SETUP(void)
 
     // Disable SWD to be able to use the pins
     __HAL_RCC_AFIO_CLK_ENABLE();
-    AFIO->MAPR &= ((~AFIO_MAPR_SWJ_CFG_Msk) | AFIO_MAPR_SWJ_CFG_DISABLE);
+    AFIO->MAPR &= ~AFIO_MAPR_SWJ_CFG_Msk; 
+    AFIO->MAPR |= AFIO_MAPR_SWJ_CFG_DISABLE;
 
     /* Configure I/O pin SWCLK */
     pin_out_init(SWCLK_TCK_PIN_PORT, SWCLK_TCK_PIN_Bit);
